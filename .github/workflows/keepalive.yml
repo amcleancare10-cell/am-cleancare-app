@@ -1,5 +1,5 @@
 # Mantém o projeto Supabase ATIVO (o plano gratuito pausa após ~7 dias sem atividade).
-# Corre sozinho de 2 em 2 dias e faz um pedido simples à API pública (a chave "anon" é pública por desenho).
+# Corre sozinho de 2 em 2 dias e faz uma consulta simples à base de dados pela API pública (a validação de um código inexistente) (a chave "anon" é pública por desenho).
 name: Manter Supabase ativo
 on:
   schedule:
@@ -12,7 +12,7 @@ jobs:
       - name: Pedido à API
         run: |
           for i in 1 2 3; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "https://uxxjvwvqhaeepmmdkior.supabase.co/rest/v1/login_view?select=user_id&limit=1" -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4eGp2d3ZxaGFlZXBtbWRraW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzMTA4NDUsImV4cCI6MjA1Nzg4Njg0NX0.JyVxb5ad1p9fIJF8INjbbRcRi4mA5CFZYM36e_1lGLE" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4eGp2d3ZxaGFlZXBtbWRraW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzMTA4NDUsImV4cCI6MjA1Nzg4Njg0NX0.JyVxb5ad1p9fIJF8INjbbRcRi4mA5CFZYM36e_1lGLE")
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://uxxjvwvqhaeepmmdkior.supabase.co/rest/v1/rpc/validate_registration_code" -X POST -H "content-type: application/json" -d '{"p_code":"PING-KEEPALIVE"}' -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4eGp2d3ZxaGFlZXBtbWRraW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzMTA4NDUsImV4cCI6MjA1Nzg4Njg0NX0.JyVxb5ad1p9fIJF8INjbbRcRi4mA5CFZYM36e_1lGLE" -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV4eGp2d3ZxaGFlZXBtbWRraW9yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIzMTA4NDUsImV4cCI6MjA1Nzg4Njg0NX0.JyVxb5ad1p9fIJF8INjbbRcRi4mA5CFZYM36e_1lGLE")
             echo "tentativa $i: HTTP $code"
             if [ "$code" = "200" ] || [ "$code" = "206" ]; then exit 0; fi
             sleep 20
