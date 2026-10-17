@@ -282,7 +282,7 @@ class _HomeTabState extends State<HomeTab> {
                   padding: const EdgeInsets.all(18),
                   child: Row(children: [
                     Stack(children: [
-                      Container(width: 54, height: 54, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [kPrimary, kViolet])), child: Padding(padding: const EdgeInsets.all(9), child: Image.asset('assets/logo_branco.png', fit: BoxFit.contain))),
+                      Container(width: 54, height: 54, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: Padding(padding: const EdgeInsets.all(4), child: Image.asset('assets/logo_empresa.png', fit: BoxFit.contain))),
                       Positioned(right: 0, bottom: 0, child: Container(width: 15, height: 15, decoration: BoxDecoration(color: kGreen, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).cardTheme.color!, width: 2.5)))),
                     ]),
                     const SizedBox(width: 14),

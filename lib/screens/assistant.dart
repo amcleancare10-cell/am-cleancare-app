@@ -202,7 +202,7 @@ class _Avatar extends StatelessWidget {
   final bool dot;
   @override
   Widget build(BuildContext context) => Stack(clipBehavior: Clip.none, children: [
-        Container(width: size, height: size, decoration: const BoxDecoration(shape: BoxShape.circle, gradient: LinearGradient(colors: [kPrimary, kViolet], begin: Alignment.topLeft, end: Alignment.bottomRight)), child: Padding(padding: EdgeInsets.all(size * .16), child: Image.asset('assets/logo_branco.png', fit: BoxFit.contain))),
+        Container(width: size, height: size, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white), child: Padding(padding: EdgeInsets.all(size * .06), child: Image.asset('assets/logo_empresa.png', fit: BoxFit.contain))),
         if (dot) Positioned(right: -1, bottom: -1, child: Container(width: size * .32, height: size * .32, decoration: BoxDecoration(color: kGreen, shape: BoxShape.circle, border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2)))),
       ]);
 }

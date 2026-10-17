@@ -105,7 +105,7 @@ class Brand extends StatelessWidget {
       ? Container(width: size, height: size, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(size * .32)), padding: EdgeInsets.all(size * .08), child: ClipRRect(borderRadius: BorderRadius.circular(size * .24), child: Image.network(logoUrl!.trim(), fit: BoxFit.contain, errorBuilder: (_, __, ___) => const SizedBox())))
       : AppConfig.logoAsset.isNotEmpty
       ? Image.asset(AppConfig.logoAsset, height: size)
-      : Container(width: size, height: size, decoration: BoxDecoration(gradient: light ? null : const LinearGradient(colors: [kPrimary, kViolet]), color: light ? Colors.white.withValues(alpha: .2) : null, borderRadius: BorderRadius.circular(size * .32)), alignment: Alignment.center, child: Text(AppConfig.appName.characters.first, style: TextStyle(color: Colors.white, fontSize: size * .5, fontWeight: FontWeight.w800)));
+      : Container(width: size, height: size, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(size * .32), boxShadow: light ? null : [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 8)]), padding: EdgeInsets.all(size * .05), child: Image.asset('assets/logo_empresa.png', fit: BoxFit.contain));
 }
 
 /// Cartão suave, com toque opcional.
