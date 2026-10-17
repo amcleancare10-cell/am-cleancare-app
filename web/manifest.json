@@ -1,0 +1,36 @@
+{
+    "name": "AM Clean Care",
+    "short_name": "AM Clean Care",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#0F1220",
+    "theme_color": "#4F46E5",
+    "description": "Application des locataires : tickets, communauté et services de votre immeuble.",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "lang": "fr",
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

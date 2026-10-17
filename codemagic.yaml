@@ -1,0 +1,44 @@
+# Compilação do iOS na nuvem (Codemagic, com Mac): sem precisar de um Mac teu.
+# Antes de usar: ligar o repositório ao Codemagic, criar a chave da App Store Connect (integração "AMCleanCare")
+# e definir a variável APP_STORE_APPLE_ID (número da app na App Store Connect).
+workflows:
+  ios-release:
+    name: AM Clean Care - iOS (TestFlight / App Store)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: AMCleanCare
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.amcleancare.propertyissues
+      vars:
+        BUNDLE_ID: "com.amcleancare.propertyissues"
+        APP_STORE_APPLE_ID: 6756571666
+    scripts:
+      - name: Dependências do Flutter
+        script: flutter pub get
+      - name: Dependências do iOS (CocoaPods)
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Número de build automático (sobe sempre)
+        script: |
+          LATEST=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          echo "BUILD_NUMBER=$((LATEST + 1))" >> $CM_ENV
+      - name: Aplicar a assinatura
+        script: xcode-project use-profiles
+      - name: Compilar a app iOS
+        script: |
+          flutter build ipa --release --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
