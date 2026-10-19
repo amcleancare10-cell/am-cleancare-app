@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config.dart';
 import 'main.dart';
+import 'l10n.dart';
 
 String _b64(Object o) => base64Url.encode(utf8.encode(jsonEncode(o))).replaceAll('=', '');
 
@@ -17,8 +18,8 @@ String _ago(int minutes) => _now.subtract(Duration(minutes: minutes)).toIso8601S
 final Map<String, List<Map<String, dynamic>>> _db = {
   'login_view': [{'user_id': 'T1', 'role': 'tenant', 'name': 'Ana Silva', 'email': 'ana@exemple.ch', 'phone': '+41 79 123 45 67'}],
   'tenants': [{'user_id': 'T1', 'apartment_id': 37, 'full_name': 'Ana Silva', 'email': 'ana@exemple.ch', 'phone': '+41 79 123 45 67', 'apartNum': '3B', 'floor': 3, 'statusAproved': 'Accepté', 'created_at': '2023-01-12T10:00:00Z'}],
-  'batiment': [{'id': 37, 'address': 'Rue de Lausanne 12, 1020 Renens', 'description': 'Résidence Les Fleurs', 'manager_id': 'M1', 'floors': 5}],
-  'managers': [{'user_id': 'M1', 'manager_name': 'Julien Volet', 'agency_name': 'Régie du Léman', 'email': 'gerance@exemple.ch', 'phone': '+41 21 555 12 34'}],
+  'batiment': [{'id': 37, 'address': 'Avenue des Alpes 12, 1020 Renens', 'description': 'Résidence Les Fleurs', 'manager_id': 'M1', 'floors': 5, 'imgBatiment': 'http://localhost:8800/demo/immeuble1.png', 'whatsapp_group': 'https://chat.whatsapp.com/exemple'}],
+  'managers': [{'user_id': 'M1', 'manager_name': 'Sophie Exemple', 'agency_name': 'Gérance Modèle SA', 'email': 'gerance@exemple.ch', 'phone': '+41 21 000 00 01', 'agency_img': 'http://localhost:8800/demo/logo-gerance.png', 'team_phone': '+41 79 000 00 02', 'team_whatsapp': '+41 79 000 00 02'}],
   'tickets': [
     {'id': 101, 'title': 'Fuite sous l\'évier', 'description': 'Il y a de l\'eau sous l\'évier de la cuisine depuis ce matin.', 'status': 'En Cours', 'created_at': _ago(60 * 5), 'tenant_id': 'T1', 'photos': []},
     {'id': 98, 'title': 'Ampoule du couloir', 'description': 'Le couloir du 3e étage est sombre.', 'status': 'En Attente', 'created_at': _ago(60 * 30), 'tenant_id': 'T1', 'photos': []},
@@ -26,10 +27,10 @@ final Map<String, List<Map<String, dynamic>>> _db = {
   ],
   'ticket_chats': [
     {'id': 1, 'ticket_id': 101, 'author_id': 'T1', 'author_name': 'Ana Silva', 'message': 'Bonjour, il y a une fuite sous l\'évier.', 'sent_at': _ago(290)},
-    {'id': 2, 'ticket_id': 101, 'author_id': 'M1', 'author_name': 'Julien Volet', 'message': 'Bonjour Ana, un plombier passera demain matin.', 'sent_at': _ago(240)},
+    {'id': 2, 'ticket_id': 101, 'author_id': 'M1', 'author_name': 'Sophie Exemple', 'message': 'Bonjour Ana, un plombier passera demain matin.', 'sent_at': _ago(240)},
   ],
   'last_ticket_message_view': [
-    {'ticket_id': 101, 'author_name': 'Julien Volet', 'message': 'Bonjour Ana, un plombier passera demain matin.', 'sent_at': _ago(240), 'status': 'En Cours', 'ticket_creator_id': 'T1'},
+    {'ticket_id': 101, 'author_name': 'Sophie Exemple', 'message': 'Bonjour Ana, un plombier passera demain matin.', 'sent_at': _ago(240), 'status': 'En Cours', 'ticket_creator_id': 'T1'},
     {'ticket_id': 98, 'author_name': 'Ana Silva', 'message': 'Le couloir du 3e étage est sombre.', 'sent_at': _ago(60 * 30), 'status': 'En Attente', 'ticket_creator_id': 'T1'},
   ],
   'Notification New': [
@@ -97,7 +98,17 @@ Future<http.Response> _route(http.Request r) async {
   final path = r.url.path;
   if (path == '/auth/v1/user') return _json(_user());
   if (path.startsWith('/auth/')) return _json({'access_token': _jwt(), 'refresh_token': 'demo', 'expires_in': 86400, 'token_type': 'bearer', 'user': _user()});
-  if (path.startsWith('/functions/v1/ai-chat')) return _json({'reply': "Je suis désolé pour cette fuite. Où se situe-t-elle exactement ? Si c'est urgent, contactez-nous sur WhatsApp ; sinon, ouvrez un Ticket pour que l'équipe intervienne."});
+  if (path.startsWith('/functions/v1/ai-chat')) {
+    String lg = 'fr';
+    try { lg = '${(jsonDecode(r.body) as Map)['lang'] ?? 'fr'}'; } catch (_) {}
+    const R = {
+      'fr': "Je suis désolé pour cette fuite. Où se situe-t-elle exactement ? Si c'est urgent, contactez-nous sur WhatsApp ; sinon, ouvrez un Ticket pour que l'équipe intervienne.",
+      'en': "I'm sorry about that leak. Where exactly is it? If it is urgent, contact us on WhatsApp; otherwise, open a Ticket so the team can step in.",
+      'de': "Das tut mir leid mit dem Leck. Wo genau befindet es sich? Wenn es dringend ist, schreiben Sie uns per WhatsApp; sonst eröffnen Sie ein Ticket, damit das Team eingreift.",
+      'pt': "Lamento a fuga de água. Onde fica exatamente? Se for urgente, contacte-nos por WhatsApp; caso contrário, abra um Ticket para a equipa intervir.",
+    };
+    return _json({'reply': R[lg] ?? R['fr']});
+  }
   if (path.startsWith('/functions/')) return _json({'ok': true});
   if (path.startsWith('/storage/')) return _json({'Key': 'demo'});
   if (path.startsWith('/rest/v1/rpc/')) return _json([]);
@@ -131,5 +142,6 @@ Future<void> main() async {
   await Supabase.initialize(url: 'https://demo.supabase.co', publishableKey: AppConfig.anonKey, httpClient: MockClient(_handle));
   final exp = DateTime.now().add(const Duration(days: 1)).millisecondsSinceEpoch ~/ 1000;
   if (!Uri.base.queryParameters.containsKey('login')) await Supabase.instance.client.auth.recoverSession(jsonEncode({'access_token': _jwt(), 'refresh_token': 'demo', 'expires_in': 86400, 'expires_at': exp, 'token_type': 'bearer', 'user': _user()}));
+  await L.load();
   runApp(const App());
 }

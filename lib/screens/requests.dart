@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../config.dart';
 import '../ui.dart';
+import '../laundry_help.dart';
 
 enum RequestKind { camera, code, laundry }
 
@@ -28,6 +29,7 @@ class _RequestScreenState extends State<RequestScreen> {
   TimeOfDay time = TimeOfDay.now();
   String? codeChoice;
   bool busy = false;
+  Json? laundry;
 
   RequestKind get kind => widget.kind;
   bool get needsPhoto => kind != RequestKind.code;
@@ -36,6 +38,7 @@ class _RequestScreenState extends State<RequestScreen> {
   void initState() {
     super.initState();
     contact.text = widget.me.phone.isNotEmpty ? '${widget.me.email} · ${widget.me.phone}' : widget.me.email;
+    if (widget.kind == RequestKind.laundry) loadMyLaundry(widget.me).then((l) { if (mounted) setState(() => laundry = l); });
   }
 
   String get title => switch (kind) { RequestKind.camera => "Demande d'information", RequestKind.code => 'Demande de code', RequestKind.laundry => 'Gestion des problèmes' };
@@ -74,7 +77,11 @@ class _RequestScreenState extends State<RequestScreen> {
       final template = switch (kind) { RequestKind.laundry => 'laundry_report', RequestKind.code => 'code_request', RequestKind.camera => 'camera_request' };
       // como na app original: os pedidos vão para a caixa da empresa (info@ambox.ch), com os dados do gerente no corpo
       await Api.email(template, AppConfig.supportEmail, AppConfig.appName, p);
-      await Api.notify([me.managerId], title, '${me.name} · ${p['deviceType']}');
+      if (kind == RequestKind.laundry) {
+        await _laundryTicket(me, m, urls, p);   // o signalamento vira um ticket real (lugar « Buanderie ») : a gérance acompanha-o no painel
+      } else {
+        await Api.notify([me.managerId], title, '${me.name} · ${p['deviceType']}');
+      }
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -94,6 +101,34 @@ class _RequestScreenState extends State<RequestScreen> {
       if (mounted) toast(context, Api.fmtErr(e), error: true);
     } finally {
       if (mounted) setState(() => busy = false);
+    }
+  }
+
+  /// Cria o ticket « Buanderie » (lugar 32 / tipo conforme a máquina) ; se falhar, o e-mail já foi enviado e a gérance é avisada na mesma.
+  Future<void> _laundryTicket(Me me, Json? m, List<String> urls, Map<String, String> p) async {
+    try {
+      if (me.buildingId == null) throw 'sem edifício';
+      final loc = await sb.from('locations').select('id').ilike('description', 'buanderie').limit(1).maybeSingle();
+      final locId = loc?['id'];
+      final probs = problems.toList();
+      final leak = probs.contains("Fuite d'eau");
+      final typeName = leak ? "Fuite d eau" : (device == 'Sèche-linge' ? 'Séchoir en panne' : 'Machine à laver en panne');
+      int? typeId;
+      if (locId != null) { final t = await sb.from('problem_types').select('id').eq('locationID', locId).ilike('name', typeName).limit(1).maybeSingle(); typeId = (t?['id'] as num?)?.toInt(); }
+      final titleT = 'Buanderie · ${device ?? ''} · ${probs.join(', ')}';
+      final descT = [if (probs.isNotEmpty) 'Problèmes : ${probs.join(', ')}', if (details.text.trim().isNotEmpty) details.text.trim(), 'Signalé depuis la section Buanderie de l\'application.'].join('\n');
+      final ticket = await sb.from('tickets').insert({'tenant_id': me.uid, 'apartment_id': me.buildingId, 'title': titleT, 'description': descT, 'location_id': locId, 'problem_type_id': typeId, 'status': 'En Attente', 'photos': urls}).select().single();
+      await sb.from('ticket_chats').insert({'ticket_id': ticket['id'], 'author_id': me.uid, 'author_name': me.name, 'message': descT, 'isVisualized': false});
+      await Api.notify([me.managerId], 'Nouveau ticket #${ticket['id']} · Buanderie', '$titleT · ${me.name}');
+      final now = DateTime.now();
+      Api.email('ticket_created', m?['email']?.toString(), m?['manager_name']?.toString(), {
+        'ticketNumber': '${ticket['id']}', 'ticketTitle': titleT, 'creatorName': me.name, 'apartmentName': me.buildingName, 'floor': '${me.floor ?? ''}', 'apartamentNumber': me.apartNum,
+        'problemDescription': descT, 'location': 'Buanderie', 'problemType': typeName, 'photoUrls': urls.take(4).join(','), 'tenantPhone': me.phone, 'tenantEmail': me.email,
+        'address': '${me.building?['address'] ?? ''}', 'date': fmtDate(now.toIso8601String()), 'time': '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}', 'landLordEmail': '${m?['email'] ?? ''}',
+      });
+    } catch (e) {
+      debugPrint('laundry ticket: $e');
+      await Api.notify([me.managerId], title, '${me.name} · ${p['deviceType']}');
     }
   }
 
@@ -153,6 +188,7 @@ class _RequestScreenState extends State<RequestScreen> {
             Row(children: [deviceTile('Machine à laver', Icons.local_laundry_service_outlined), const SizedBox(width: 12), deviceTile('Sèche-linge', Icons.dry_cleaning_outlined)]),
             const FormLabel('Sélectionnez le problème rencontré'),
             Wrap(spacing: 8, runSpacing: 8, children: [for (final p in const ['Ne démarre pas', "Fuite d'eau", 'Bruit anormal', 'Cycle incomplet', "Erreur sur l'écran", 'Porte bloquée']) FilterChip(label: Text(p), selected: problems.contains(p), selectedColor: kPrimary.withValues(alpha: .15), onSelected: (v) => setState(() => v ? problems.add(p) : problems.remove(p)))]),
+            LaundryHelpCard(laundry: laundry, problems: problems),
             const FormLabel('Ajouter une photo du problème'),
             photoPicker('Une photo nous aide à intervenir plus vite.'),
             const FormLabel('Détails (facultatif)'),
@@ -160,7 +196,7 @@ class _RequestScreenState extends State<RequestScreen> {
             const FormLabel('Aide'),
             SoftCard(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), child: Column(children: [
               helpTile(Icons.menu_book_outlined, 'Guide', AppConfig.helpGuideUrl), const Divider(),
-              helpTile(Icons.description_outlined, 'Manuel', AppConfig.helpManualUrl), const Divider(),
+              helpTile(Icons.description_outlined, 'Manuel', '${laundry?['lien_manuel'] ?? ''}'.trim().isNotEmpty ? '${laundry!['lien_manuel']}'.trim() : AppConfig.helpManualUrl), const Divider(),
               helpTile(Icons.play_circle_outline_rounded, 'Vidéos', AppConfig.helpVideosUrl),
             ])),
           ],

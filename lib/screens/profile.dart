@@ -4,7 +4,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../config.dart';
 import '../rules.dart';
-import '../push.dart';
 import '../ui.dart';
 
 /// Profil: informations personnelles, paramètres du compte, règles, notifications.
@@ -93,12 +92,6 @@ class _ProfileTabState extends State<ProfileTab> {
             const SectionTitle('Plus'),
             SoftCard(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(children: [
               action(Icons.notifications_none_rounded, 'Notifications', () => Navigator.push(context, MaterialPageRoute(builder: (_) => NotificationsScreen(me: me)))),
-              action(Icons.notifications_active_outlined, 'Tester les notifications du téléphone', () async {
-                await Push.login(me.uid);
-                await Future.delayed(const Duration(seconds: 3));
-                final st = await Push.status(me.uid);
-                if (context.mounted) showDialog(context: context, builder: (c) => AlertDialog(title: const Text('Notifications du téléphone'), content: SelectableText(st), actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('Fermer'))]));
-              }),
               const Divider(indent: 70),
               action(Icons.spa_outlined, 'Règles de bien-être', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RulesScreen())), color: kTeal),
               const Divider(indent: 70),
@@ -165,7 +158,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   int _k = 0;
-  Future<List<Json>> load() async => List<Json>.from(await sb.from('Notification New').select().eq('userid', widget.me.uid).order('created_at', ascending: false).limit(100));
+  Future<List<Json>> load() async => List<Json>.from(await sb.from('Notification New').select().eq('userid', widget.me.uid).order('created_at', ascending: false).limit(100)).where((n) => n['Tittle'] != 'DIAG-PUSH').toList();
 
   Future<void> markAll(List<Json> rows) async {
     final ids = rows.where((n) => n['Read'] == 'Unread').map((n) => n['id']).toList();

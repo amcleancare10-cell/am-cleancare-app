@@ -32,13 +32,6 @@ class Push {
       await OneSignal.Notifications.requestPermission(true);
       await OneSignal.User.pushSubscription.optIn();
     } catch (_) {}
-    // diagnóstico temporário: regista o estado do registo para a equipa de suporte o poder ver
-    Future.delayed(const Duration(seconds: 12), () async {
-      try {
-        final st = await status(uid);
-        await sb.from('Notification New').insert({'type': 'diag', 'userid': uid, 'Tittle': 'DIAG-PUSH', 'Description': st, 'Read': 'Read'});
-      } catch (_) {}
-    });
   }
 
   /// As notificações do telemóvel estão permitidas? (na web não se aplica: devolve true)

@@ -10,6 +10,7 @@ import '../config.dart';
 import '../ui.dart';
 import 'requests.dart';
 import 'tickets.dart';
+import '../laundry_help.dart';
 
 const welcome = "Bonjour, je suis votre concierge virtuel 👋\nJe suis là pour vous aider à trouver la solution à votre problème.\nJe parle votre langue ainsi que plusieurs autres.\n\nComment puis-je vous aider ?";
 
@@ -21,6 +22,7 @@ bool _has(String t, List<String> keys) {
 
 bool needsWhatsapp(String t) => _has(t, ['whatsapp', 'contactez-nous sur whatsapp', 'contact us on whatsapp']);
 bool needsFootage(String t) => _has(t, ['security footage', 'footage', 'security video', 'watch footage', 'watch video footage', 'surveillance camera', 'sécurité vidéo', 'view the footage', 'visionner les images', 'see the recording', 'enregistrement vidéo']);
+bool needsLaundry(String t) => _has(t, ['laundry report', 'rapport buanderie', 'signaler un problème', 'buanderie (', 'relatório de lavandaria']);
 bool needsTicket(String t) => _has(t, ['open a ticket', 'create a ticket', 'ticket', 'ouvrir un dossier', 'déposer un ticket', 'contacter', 'contacting management', 'management contact', 'am cleancare', 'agency', 'contact management']);
 
 /// Concierge virtuel: assistente de IA com memória da conversa.
@@ -37,6 +39,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
   final List<Map<String, dynamic>> history = [];
   XFile? pendingImage;
   bool busy = false, loaded = false;
+  Json? laundry;
   String get _key => 'assistant_${widget.me.uid}';
 
   @override
@@ -50,6 +53,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
       if (mounted) setState(() => loaded = true);
       _down();
     });
+    loadMyLaundry(widget.me).then((l) { laundry = l; });
   }
 
   Future<void> _save() async => (await SharedPreferences.getInstance()).setString(_key, jsonEncode(history.length > 40 ? history.sublist(history.length - 40) : history));
@@ -73,9 +77,10 @@ class _AssistantScreenState extends State<AssistantScreen> {
     history.add({'role': 'user', 'content': t.isEmpty ? '(photo)' : t, 'image_url': ?imageUrl, 't': DateTime.now().toIso8601String()});
     setState(() {});
     _down();
-    final r = await Api.edge('ai-chat', {'lang': L.lang.value, 'context': {'name': widget.me.name.split(' ').first, 'building': widget.me.buildingName, 'apartment': widget.me.apartNum, 'whatsappGroup': '${widget.me.building?['whatsapp_group'] ?? ''}'.trim().isNotEmpty}, 'messages': history.map((m) => {'role': m['role'], 'content': m['content'], 'image_url': ?m['image_url']}).toList()});
+    final r = await Api.edge('ai-chat', {'lang': L.lang.value, 'context': {'name': widget.me.name.split(' ').first, 'building': widget.me.buildingName, 'apartment': widget.me.apartNum, 'whatsappGroup': '${widget.me.building?['whatsapp_group'] ?? ''}'.trim().isNotEmpty, if (laundry != null) 'laundry': {'name': laundry!['nom'], 'machines': (laundry!['machines'] is List ? (laundry!['machines'] as List).join(', ') : ''), 'instructions': laundry!['consignes'], 'rules': laundry!['regles'], 'manual': '${laundry!['lien_manuel'] ?? ''}'.trim().isNotEmpty}}, 'messages': history.map((m) => {'role': m['role'], 'content': m['content'], 'image_url': ?m['image_url']}).toList()});
     final reply = r?['reply']?.toString();
-    history.add({'role': 'assistant', 'content': (reply == null || reply.isEmpty) ? "Je ne suis pas disponible pour le moment. Vous pouvez contacter la conciergerie sur WhatsApp ou ouvrir un Ticket pour que l'équipe vous aide." : reply, 't': DateTime.now().toIso8601String()});
+    final att = (r?['attachments'] is List) ? List<Map<String, dynamic>>.from((r!['attachments'] as List).map((e) => Map<String, dynamic>.from(e as Map))) : <Map<String, dynamic>>[];
+    history.add({'role': 'assistant', 'content': (reply == null || reply.isEmpty) ? "Je ne suis pas disponible pour le moment. Vous pouvez contacter la conciergerie sur WhatsApp ou ouvrir un Ticket pour que l'équipe vous aide." : reply, if (att.isNotEmpty) 'attachments': att, 't': DateTime.now().toIso8601String()});
     await _save();
     if (mounted) setState(() => busy = false);
     _down();
@@ -94,7 +99,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
     Widget chip(IconData i, String l, Color c, VoidCallback f) => ActionChip(avatar: Icon(i, size: 18, color: c), label: Text(l, style: TextStyle(fontWeight: FontWeight.w700, color: c)), side: BorderSide(color: c.withValues(alpha: .5)), backgroundColor: c.withValues(alpha: .08), onPressed: f);
     if (needsWhatsapp(text) && AppConfig.whatsappUrl.isNotEmpty) chips.add(chip(Icons.chat_rounded, 'WhatsApp', const Color(0xFF1FAF54), () => launchUrl(Uri.parse(AppConfig.whatsappUrl), mode: LaunchMode.externalApplication)));
     if (needsFootage(text)) chips.add(chip(Icons.videocam_outlined, 'Demander les images', kAmber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestScreen(me: widget.me, kind: RequestKind.camera)))));
-    if (needsTicket(text)) chips.add(chip(Icons.confirmation_number_outlined, 'Ouvrir un ticket', kPrimary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => NewTicketScreen(me: widget.me)))));
+    final isLaundry = needsLaundry(text);
+    if (isLaundry) chips.add(chip(Icons.local_laundry_service_outlined, tr('Signaler un problème'), kAmber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestScreen(me: widget.me, kind: RequestKind.laundry)))));
+    if (needsTicket(text) && !isLaundry) chips.add(chip(Icons.confirmation_number_outlined, 'Ouvrir un ticket', kPrimary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => NewTicketScreen(me: widget.me)))));
     chips.add(chip(Icons.copy_rounded, 'Copier', const Color(0xFF667085), () { Clipboard.setData(ClipboardData(text: text)); toast(context, 'Réponse copiée.'); }));
     return Padding(padding: const EdgeInsets.only(top: 4, bottom: 6), child: Wrap(spacing: 8, runSpacing: 6, children: chips));
   }
@@ -158,6 +165,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       text: '${history[i]['content']}',
                       time: history[i]['t'] != null ? fmtTime(history[i]['t']) : null,
                       imageUrl: history[i]['image_url']?.toString(),
+                      attachments: history[i]['attachments'] is List ? List<Map<String, dynamic>>.from((history[i]['attachments'] as List).map((e) => Map<String, dynamic>.from(e as Map))) : const [],
                     ),
                     if (i == lastIdx && !busy) Padding(padding: const EdgeInsets.only(left: 38), child: actions('${history[i]['content']}')),
                   ],
@@ -209,11 +217,12 @@ class _Avatar extends StatelessWidget {
 
 /// Uma linha de conversa estilo Messenger: avatar à esquerda nas mensagens do concierge, balão à direita nas minhas.
 class _Row extends StatelessWidget {
-  const _Row({required this.mine, required this.text, this.showAvatar = false, this.time, this.imageUrl}) : typing = false;
-  const _Row.typing() : mine = false, text = '', showAvatar = true, time = null, imageUrl = null, typing = true;
+  const _Row({required this.mine, required this.text, this.showAvatar = false, this.time, this.imageUrl, this.attachments = const []}) : typing = false;
+  const _Row.typing() : mine = false, text = '', showAvatar = true, time = null, imageUrl = null, attachments = const [], typing = true;
   final bool mine, showAvatar, typing;
   final String text;
   final String? time, imageUrl;
+  final List<Map<String, dynamic>> attachments;
 
   @override
   Widget build(BuildContext context) {
@@ -246,6 +255,25 @@ class _Row extends StatelessWidget {
                       : Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                           if (imageUrl != null) Padding(padding: EdgeInsets.only(bottom: text == '(photo)' ? 0 : 8), child: ClipRRect(borderRadius: BorderRadius.circular(14), child: Image.network(imageUrl!, width: 210, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()))),
                           if (text.isNotEmpty && text != '(photo)') Text(text, style: TextStyle(color: mine ? Colors.white : null, height: 1.4, fontSize: 15)),
+                          for (final a in attachments)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => launchUrl(Uri.parse('${a['url']}'), mode: LaunchMode.externalApplication),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(color: kRed.withValues(alpha: .08), borderRadius: BorderRadius.circular(14), border: Border.all(color: kRed.withValues(alpha: .35))),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    const Icon(Icons.picture_as_pdf_rounded, color: kRed, size: 26),
+                                    const SizedBox(width: 10),
+                                    Flexible(child: Text('${a['title']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14))),
+                                    const SizedBox(width: 6),
+                                    const Icon(Icons.open_in_new_rounded, size: 17),
+                                  ]),
+                                ),
+                              ),
+                            ),
                         ]),
                 ),
                 if (time != null && time!.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(6, 3, 6, 0), child: Text(time!, style: TextStyle(fontSize: 11, color: mutedOf(context)))),

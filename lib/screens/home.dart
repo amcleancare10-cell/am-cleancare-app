@@ -105,7 +105,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<Map<String, dynamic>> load() async {
     final me = widget.me;
-    final notifs = List<Json>.from(await sb.from('Notification New').select().eq('userid', me.uid).order('created_at', ascending: false).limit(30));
+    final notifs = List<Json>.from(await sb.from('Notification New').select().eq('userid', me.uid).order('created_at', ascending: false).limit(30)).where((n) => n['Tittle'] != 'DIAG-PUSH').toList();
     final tickets = List<Json>.from(await sb.from('tickets').select('id,status').eq('tenant_id', me.uid));
     final manager = await Api.managerOf(me);
     var posts = <Json>[];
@@ -201,8 +201,14 @@ class _HomeTabState extends State<HomeTab> {
     final tp = '${manager?['team_phone'] ?? ''}'.trim(), tw = '${manager?['team_whatsapp'] ?? ''}'.replaceAll(RegExp(r'[^0-9]'), '');
     final phone = tp.isNotEmpty ? tp : AppConfig.phoneConcierge;
     final waUrl = tw.isNotEmpty ? 'https://wa.me/$tw' : AppConfig.whatsappUrl;
-    // só os dias (sem horas): "Mar · Jeu"
-    final days = rows.map((r) => (r['jour'] as num).toInt()).toSet().toList()..sort();
+    // dias por período (a gérance escolhe « matin » ou « après-midi » para cada dia) : "Lun · Mer · après-midi"
+    final am = <int>{}, pm = <int>{};
+    for (final r in rows) {
+      final h = int.tryParse('${r['debut']}'.substring(0, 2)) ?? 14;
+      ((h < 12) ? am : pm).add((r['jour'] as num).toInt());
+    }
+    String line(Set<int> d, String per) => '${(d.toList()..sort()).map(dayName).join(' · ')} — ${tr(per)}';
+    final lines = [if (am.isNotEmpty) line(am, 'matin'), if (pm.isNotEmpty) line(pm, 'après-midi')];
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Container(
@@ -214,7 +220,7 @@ class _HomeTabState extends State<HomeTab> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text("Nous sommes présents dans l'immeuble", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5)),
             const SizedBox(height: 3),
-            Text(days.map(dayName).join(' · '), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+            for (final l in lines) Text(l, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           ])),
           IconButton(
             visualDensity: VisualDensity.compact,

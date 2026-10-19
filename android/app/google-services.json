@@ -9,6 +9,25 @@
       "client_info": {
         "mobilesdk_app_id": "1:925818753476:android:3d9837954d7e03364f1491",
         "android_client_info": {
+          "package_name": "ch.amcleancare.am_locataire"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN1rbE-piu_qPK4znuIEToLHRBRGkIq5A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925818753476:android:33da3744cf6300cb4f1491",
+        "android_client_info": {
           "package_name": "com.amcleancare.propertyissues"
         }
       },

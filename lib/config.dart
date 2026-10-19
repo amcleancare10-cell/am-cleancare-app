@@ -7,17 +7,17 @@ class AppConfig {
   // Marca: para reaproveitar a app noutra gerência basta mudar estas linhas (e o ícone em assets).
   static const appName = 'AM Clean Care';
   // Atualização por APK: subir `buildNumber` em cada versão nova e o mesmo número em apk/version.json do plugin
-  static const buildNumber = 100;
+  static const buildNumber = 106;
   static const updateInfoUrl = 'https://amcleancare.ch/apk/version.json';
   static const updateApkUrl = 'https://amcleancare.ch/apk';
   static const supportEmail = 'info@ambox.ch';
   static const logoAsset = ''; // ex.: assets/logo.png
-  static const webPanelUrl = 'amcleancare.ch/gerencia';
+  static const webPanelUrl = 'amcleancare.ch/gerance';
 
   // Conciergerie (os mesmos contactos da app original)
-  static const phoneConcierge = '+41 78 982 20 68';
+  static const phoneConcierge = '+41 78 329 38 49';
   static const phoneGerance = ''; // se vazio usa o telefone do gestor do edifício
-  static const whatsappUrl = 'https://wa.me/41789822068?text=Bonjour%2C%20je%20souhaiterais%20faire%20appel%20au%20service%20de%20conciergerie.';
+  static const whatsappUrl = 'https://wa.me/41783293849?text=Bonjour%2C%20je%20souhaiterais%20faire%20appel%20au%20service%20de%20conciergerie.';
 
   // Ajuda da lavandaria (os mesmos links da app original)
   static const helpGuideUrl = 'https://ambox.ch/guides-daide/';

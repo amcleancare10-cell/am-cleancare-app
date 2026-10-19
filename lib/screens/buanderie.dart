@@ -5,6 +5,7 @@ import '../api.dart';
 import '../config.dart';
 import '../ui.dart';
 import 'requests.dart';
+import '../laundry_help.dart';
 
 /// Buanderie: planning semanal FIXO do edifício. Só a gérance (admin, no painel) o altera; o locatário consulta
 /// e vê o seu dia a destacado. Os dias avançam sozinhos: mostra sempre os próximos dias de abertura a partir de hoje.
@@ -194,7 +195,8 @@ class _BuanderieScreenState extends State<BuanderieScreen> {
   void report() => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestScreen(me: widget.me, kind: RequestKind.laundry)));
 
   // ------------------------------------------------------------ visual
-  Widget reportButton() => Padding(
+  Widget reportButton() => Column(children: [LaundryHelpCard(laundry: cur), reportButtonInner()]);
+  Widget reportButtonInner() => Padding(
         padding: const EdgeInsets.only(top: 14),
         child: OutlinedButton.icon(
           style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 52), foregroundColor: kAmber, side: BorderSide(color: kAmber.withValues(alpha: .6), width: 1.4), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
