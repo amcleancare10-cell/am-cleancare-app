@@ -42,3 +42,21 @@ workflows:
         auth: integration
         submit_to_testflight: true
         submit_to_app_store: false
+  # Só cria na Apple o perfil de assinatura (App Store) ligado a TODOS os certificados de distribuição da conta. Corre-se uma vez.
+  criar-perfil:
+    name: AM Clean Care - criar perfil de assinatura (uma vez)
+    max_build_duration: 15
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: AMCleanCare
+    environment:
+      vars:
+        BUNDLE_ID: "com.amcleancare.propertyissues"
+    scripts:
+      - name: Criar o perfil App Store na Apple
+        script: |
+          BID=$(app-store-connect bundle-ids list --bundle-id-identifier "$BUNDLE_ID" --json | python3 -c "import sys,json; d=json.load(sys.stdin); print([x['id'] for x in d if x['attributes']['identifier']=='$BUNDLE_ID'][0])")
+          echo "Bundle ID resource: $BID"
+          CERTS=$(app-store-connect certificates list --type DISTRIBUTION --json | python3 -c "import sys,json; print(' '.join(x['id'] for x in json.load(sys.stdin)))")
+          echo "Certificados de distribuição: $CERTS"
+          app-store-connect profiles create "$BID" --certificate-ids $CERTS --type IOS_APP_STORE --name "AMCleanCare_AppStore_$(date +%Y%m%d)"
