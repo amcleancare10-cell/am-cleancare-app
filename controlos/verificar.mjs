@@ -59,6 +59,8 @@ await check('Segurança', 'anónimo não lista ficheiros da pasta de imagens', a
 await check('Agente', 'controlo interno da base de dados (sem erros)', async () => {
   const r = await get(`${SB}/functions/v1/controle-semanal`, { method: 'POST', headers: { ...H, 'content-type': 'application/json' }, body: JSON.stringify({ dry: true }), timeout: 90000 }); need(r.ok, 'HTTP ' + r.status); const j = await r.json(); need(j.ok !== false, 'agente falhou');
   if (j.problemas > 0) { const lista = (j.issues || []).map((x) => `${x.nivel || ''} ${x.titulo || ''}`.trim()).join(' · ').slice(0, 300); return { estado: j.urgentes > 0 ? 'falha' : 'aviso', detalhe: `${j.problemas} problema(s): ${lista}` }; }
+  const anonT = j.metrics?.db?.anon_tables; if (Array.isArray(anonT)) { const ext = anonT.filter((t) => !['annonces_immo', 'candidate_information'].includes(t)); if (ext.length) return { estado: 'falha', detalhe: 'tabelas expostas a anónimos: ' + ext.join(', ') }; }
+  const semRls = j.metrics?.db?.tables_sans_rls; if (Array.isArray(semRls) && semRls.length) return { estado: 'falha', detalhe: 'tabelas sem proteção (RLS): ' + semRls.join(', ') };
   const m = j.metrics?.db; if (m) { const p = []; if (m.db_mb > 400) p.push('base de dados ' + m.db_mb + ' MB'); if (m.storage_mb > 800) p.push('ficheiros ' + m.storage_mb + ' MB'); if (p.length) return { estado: 'aviso', detalhe: p.join(', ') }; return `base de dados ${m.db_mb} MB · ficheiros ${m.storage_mb} MB`; }
 });
 await check('Agente', 'tarefas agendadas a correr (lembretes diários)', async () => {
@@ -81,7 +83,7 @@ md += ` · ${new Date().toISOString().replace('T', ' ').slice(0, 16)} UTC · ${M
 if (falhas.length) md += '## O que falhou\n' + falhas.map((r) => `- ❌ **${r.nome}** (${r.grupo}) — ${r.detalhe}`).join('\n') + '\n\n';
 if (avisos.length) md += '## Avisos\n' + avisos.map((r) => `- ⚠️ **${r.nome}** (${r.grupo}) — ${r.detalhe}`).join('\n') + '\n\n';
 md += '## Todos os controlos\n\n| | Grupo | Controlo | Detalhe |\n|---|---|---|---|\n' + rows.map((r) => `| ${ic[r.estado]} | ${r.grupo} | ${r.nome} | ${r.detalhe} |`).join('\n') + '\n';
-fs.writeFileSync('summary.md', md);
+fs.writeFileSync('summary.md', md); fs.writeFileSync('rows.json', JSON.stringify(rows));
 fs.writeFileSync('estado.txt', falhas.length ? 'falha' : avisos.length ? 'aviso' : 'ok');
 console.log(`\nResumo: ${rows.length - falhas.length - avisos.length} ok · ${avisos.length} avisos · ${falhas.length} falhas`);
 process.exit(falhas.length ? 1 : 0);

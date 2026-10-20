@@ -1,16 +1,16 @@
 # Controlos automáticos da AM Clean Care — correm no GitHub, sem o computador do utilizador.
-# De 6 em 6 horas verifica o painel, a app, as lojas de vídeos/APK, a base de dados (Supabase), os serviços, a segurança e o e-mail.
-# Se algo falhar (depois de repetir uma vez), abre um AVISO (Issue) neste repositório -> o GitHub envia e-mail ao dono do repositório.
-# Quando tudo volta ao normal, o aviso fecha-se sozinho. Só faz leituras; não guarda segredos (usa apenas endereços e a chave pública).
+# De 2 em 2 dias verifica TUDO : servidor/Supabase, segurança, e-mail, o painel real (gerente e admin, todas as páginas e botões) e a app dos locatários
+# (código compilado + app publicada a abrir). Se algo importante falhar (depois de repetir), abre um AVISO (Issue) e envia um E-MAIL URGENTE para
+# info@amcleancare.ch. Quando tudo volta ao normal, o aviso fecha-se sozinho. Só faz leituras; não guarda segredos (endereços e a chave pública).
 name: Controlos automáticos
 
 on:
   schedule:
-    - cron: '17 */6 * * *'      # às 00:17, 06:17, 12:17 e 18:17 UTC
+    - cron: '23 6 */2 * *'       # de 2 em 2 dias, às 06:23 UTC (08:23 na Suíça)
   workflow_dispatch:             # também se pode correr à mão (Actions > Controlos automáticos > Run workflow)
     inputs:
       teste_alerta:
-        description: 'Simular uma falha para testar o aviso (deixe desligado no uso normal)'
+        description: 'Enviar um e-mail de TESTE para info@amcleancare.ch (simula uma falha; deixe desligado no uso normal)'
         type: boolean
         default: false
 
@@ -24,63 +24,167 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  controlar:
+  servidor:
+    name: Servidor, segurança e e-mail
+    if: ${{ !inputs.teste_alerta }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Correr os controlos (repete uma vez se falhar, para evitar falsos alarmes)
-        id: run
+          node-version: '24'
+      - name: Controlos (repete uma vez se falhar, para evitar falsos alarmes)
+        run: |
+          set +e
+          node controlos/verificar.mjs; code=$?
+          if [ $code -ne 0 ]; then echo "Falhou — a repetir daqui a 90 segundos…"; sleep 90; node controlos/verificar.mjs; fi
+          mkdir -p out && cp rows.json out/rows-servidor.json 2>/dev/null || true
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: res-servidor
+          path: out/
+          if-no-files-found: warn
+
+  painel:
+    name: Painel (gerente e admin)
+    if: ${{ !inputs.teste_alerta }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Instalar o simulador de navegador (jsdom)
+        working-directory: controlos
+        run: npm install --no-audit --no-fund jsdom@30.1.2
+      - name: Testar o painel publicado
+        working-directory: controlos
+        run: |
+          set +e
+          node painel-vivo.mjs; code=$?
+          if [ $code -ne 0 ]; then echo "Falhou — a repetir daqui a 60 segundos…"; sleep 60; node painel-vivo.mjs; fi
+          mkdir -p ../out && cp rows-painel.json ../out/ 2>/dev/null || true
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: res-painel
+          path: out/
+          if-no-files-found: warn
+
+  app:
+    name: App dos locatários
+    if: ${{ !inputs.teste_alerta }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Dependências do Flutter
+        run: flutter pub get
+      - name: Analisar o código da app (só erros contam)
+        id: analyze
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Compilar a app de demonstração (web)
+        id: build
+        continue-on-error: true
+        run: flutter build web -t lib/main_demo.dart --release --base-href /tenant/ --output controlos/app-demo
+      - name: Instalar o controlador do navegador
+        working-directory: controlos
+        run: npm install --no-audit --no-fund puppeteer-core@23
+      - name: Abrir a app num navegador
+        id: ui
+        working-directory: controlos
+        env:
+          CHROME: /usr/bin/google-chrome
+        run: |
+          set +e
+          node app-vivo.mjs
+          exit 0
+      - name: Juntar resultados da app
+        env:
+          ANALYZE: ${{ steps.analyze.outcome }}
+          BUILD: ${{ steps.build.outcome }}
+        run: |
+          mkdir -p out
+          node -e "
+          const fs=require('fs'); let rows=[]; try{rows=JSON.parse(fs.readFileSync('controlos/rows-app.json','utf8'))}catch(e){}
+          const g='Código da app';
+          rows.push({grupo:g,nome:'o código da app não tem erros (flutter analyze)',estado:process.env.ANALYZE==='success'?'ok':'falha',detalhe:process.env.ANALYZE==='success'?'':'ver o relatório da execução no GitHub'});
+          rows.push({grupo:g,nome:'a app compila (versão web)',estado:process.env.BUILD==='success'?'ok':'falha',detalhe:process.env.BUILD==='success'?'':'ver o relatório da execução no GitHub'});
+          fs.writeFileSync('out/rows-app.json',JSON.stringify(rows));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: res-app
+          path: out/
+          if-no-files-found: warn
+
+  resumo:
+    name: Resumo e alerta
+    needs: [servidor, painel, app]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        if: ${{ !inputs.teste_alerta }}
+        with:
+          path: resultados
+          pattern: res-*
+          merge-multiple: true
+      - name: Juntar tudo num relatório
+        id: resumo
         env:
           TESTE: ${{ inputs.teste_alerta }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set +e
           if [ "$TESTE" = "true" ]; then
-            { echo "# Controlo automático AM Clean Care"; echo; echo "**❌ TESTE DO ALERTA** (não é uma falha real)"; echo; echo "Este aviso foi aberto de propósito para testar o sistema de alertas. Fecha-se sozinho na próxima execução normal."; } > summary.md
-            cat summary.md >> "$GITHUB_STEP_SUMMARY"
-            echo "code=1" >> "$GITHUB_OUTPUT"
-            exit 0
+            { echo "# Controlo automático AM Clean Care"; echo; echo "**❌ TESTE DO ALERTA** (não é uma falha real) · execução $RUN_ID"; echo; echo "## O que falhou"; echo "- ❌ **Exemplo de controlo falhado** (Teste) — isto é só uma simulação para ver como chega o e-mail. Não há nada a corrigir."; } > summary.md
+            code=1
+          else
+            mkdir -p resultados; node controlos/resumo.mjs resultados; code=$?
           fi
-          node controlos/verificar.mjs
-          code=$?
-          if [ $code -ne 0 ]; then
-            echo "Falhou — a repetir daqui a 90 segundos para confirmar…"
-            sleep 90
-            node controlos/verificar.mjs
-            code=$?
-          fi
-          echo "code=$code" >> "$GITHUB_OUTPUT"
           cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Abrir ou fechar o aviso (Issue)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CODE: ${{ steps.run.outputs.code }}
+          CODE: ${{ steps.resumo.outputs.code }}
         run: |
           gh label create controlo --color D93F0B --description "Aviso dos controlos automáticos" 2>/dev/null || true
           existing=$(gh issue list --label controlo --state open --json number --jq '.[0].number // empty')
           if [ "$CODE" != "0" ]; then
-            title="🚨 AM Clean Care: um controlo automático falhou"
-            if [ -n "$existing" ]; then
-              gh issue edit "$existing" --body-file summary.md
-              echo "Aviso $existing atualizado."
-            else
-              gh issue create --title "$title" --label controlo --body-file summary.md
-              echo "Aviso aberto."
-            fi
-          else
-            if [ -n "$existing" ]; then
-              gh issue comment "$existing" --body "✅ Tudo voltou ao normal. Aviso fechado automaticamente."
-              gh issue close "$existing"
-            fi
+            if [ -n "$existing" ]; then gh issue edit "$existing" --body-file summary.md
+            else gh issue create --title "🚨 AM Clean Care: um controlo automático falhou" --label controlo --body-file summary.md; fi
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "✅ Tudo voltou ao normal. Aviso fechado automaticamente."
+            gh issue close "$existing"
           fi
+      - name: Enviar o E-MAIL URGENTE para info@amcleancare.ch (só quando há falhas)
+        if: ${{ steps.resumo.outputs.code != '0' }}
+        run: |
+          ANON=$(curl -s https://amcleancare.ch/wp-content/plugins/am-cleancare-apps/gerencia/config.js | sed -n "s/.*SUPABASE_ANON_KEY: *'\([^']*\)'.*/\1/p" | head -1)
+          sleep 5
+          curl -s -m 60 -X POST https://uxxjvwvqhaeepmmdkior.supabase.co/functions/v1/controle-semanal -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H "content-type: application/json" -d '{"action":"github"}' | tee email.json; echo
       - name: Manter o agendamento ativo (o GitHub desliga agendamentos de repositórios parados há 60 dias)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/controlos.yml/enable" || true
-      - name: Terminar com erro se continua a falhar (o GitHub envia também um e-mail por isto)
-        if: steps.run.outputs.code != '0'
+      - name: Terminar com erro se algo continua a falhar (o GitHub envia também um e-mail por isto)
+        if: ${{ steps.resumo.outputs.code != '0' }}
         run: exit 1
