@@ -39,12 +39,7 @@ jobs:
         run: |
           set +e
           if [ "$TESTE" = "true" ]; then
-            printf '# Controlo automático AM Clean Care
-
-**❌ TESTE DO ALERTA** (não é uma falha real)
-
-Este aviso foi aberto de propósito para testar o sistema de alertas. Fecha-se sozinho na próxima execução normal.
-' > summary.md
+            { echo "# Controlo automático AM Clean Care"; echo; echo "**❌ TESTE DO ALERTA** (não é uma falha real)"; echo; echo "Este aviso foi aberto de propósito para testar o sistema de alertas. Fecha-se sozinho na próxima execução normal."; } > summary.md
             cat summary.md >> "$GITHUB_STEP_SUMMARY"
             echo "code=1" >> "$GITHUB_OUTPUT"
             exit 0
