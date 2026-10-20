@@ -6,10 +6,11 @@ class AppConfig {
 
   // Marca: para reaproveitar a app noutra gerência basta mudar estas linhas (e o ícone em assets).
   static const appName = 'AM Clean Care';
-  // Atualização por APK: subir `buildNumber` em cada versão nova e o mesmo número em apk/version.json do plugin
-  static const buildNumber = 108;
+  // Atualização SEMPRE pelas lojas. `buildNumber` sobe em cada versão nova; o número em apk/version.json do plugin só sobe DEPOIS de a versão estar publicada nas lojas.
+  static const buildNumber = 109;
   static const updateInfoUrl = 'https://amcleancare.ch/apk/version.json';
-  static const updateApkUrl = 'https://amcleancare.ch/apk';
+  static const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.amcleancare.propertyissues';
+  static const appStoreUrl = 'https://apps.apple.com/app/am-cleancare/id6756571666';
   static const supportEmail = 'info@ambox.ch';
   static const logoAsset = ''; // ex.: assets/logo.png
   static const webPanelUrl = 'amcleancare.ch/gerance';

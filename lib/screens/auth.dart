@@ -217,7 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         if (step == 0) ...[
                           const IconBadge(Icons.vpn_key_outlined, size: 56),
                           const SizedBox(height: 14),
-                          Text("Veuillez saisir le code de sécurité fourni par l'administrateur.", style: TextStyle(color: mutedOf(context), height: 1.4)),
+                          Text("Veuillez saisir le code de sécurité fourni par votre gérance.", style: TextStyle(color: mutedOf(context), height: 1.4)),
                           const SizedBox(height: 18),
                           TextField(controller: code, textCapitalization: TextCapitalization.characters, textInputAction: TextInputAction.done, onSubmitted: (_) => checkCode(), decoration: InputDecoration(labelText: tr('Code'), prefixIcon: Icon(Icons.key_rounded))),
                           const SizedBox(height: 20),

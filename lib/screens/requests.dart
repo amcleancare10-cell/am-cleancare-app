@@ -89,7 +89,7 @@ class _RequestScreenState extends State<RequestScreen> {
           icon: const IconBadge(Icons.check_circle_outline_rounded, color: kGreen, size: 64),
           title: Text(kind == RequestKind.code ? 'Succès' : 'Demande envoyée'),
           content: Text(switch (kind) {
-            RequestKind.code => "Un e-mail contenant votre demande a été envoyé à l'administrateur. Veuillez patienter jusqu'à ce que vous receviez une réponse.",
+            RequestKind.code => "Un e-mail contenant votre demande a été envoyé à votre gérance. Veuillez patienter jusqu'à ce que vous receviez une réponse.",
             RequestKind.laundry => 'Votre signalement sera traité dans les plus brefs délais.',
             RequestKind.camera => 'Votre demande a été transmise à la gérance. Vous serez contacté rapidement.',
           }),

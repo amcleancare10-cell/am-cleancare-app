@@ -164,7 +164,7 @@ class _BuanderieScreenState extends State<BuanderieScreen> {
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          const Text("L'administrateur vous attribuera ce créneau dans le planning et vous serez prévenu(e)."),
+          const Text("Votre gérance vous attribuera ce créneau dans le planning et vous serez prévenu(e)."),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
@@ -427,7 +427,7 @@ class _BuanderieScreenState extends State<BuanderieScreen> {
                 const Icon(Icons.info_outline_rounded, size: 19, color: kAmber),
                 const SizedBox(width: 10),
                 Expanded(child: Text(myCells.isEmpty
-                    ? "Vous n'avez pas encore de créneau : touchez le + sur un créneau libre pour le demander. L'administrateur l'attribuera dans le planning et vous préviendra. ${tr('Un créneau libre du planning peut être utilisé ; un créneau occupé par un autre locataire ne peut pas l\'être. Le non-respect du planning peut entraîner votre retrait du système.')}"
+                    ? "Vous n'avez pas encore de créneau : touchez le + sur un créneau libre pour le demander. Votre gérance l'attribuera dans le planning et vous préviendra. ${tr('Un créneau libre du planning peut être utilisé ; un créneau occupé par un autre locataire ne peut pas l\'être. Le non-respect du planning peut entraîner votre retrait du système.')}"
                     : tr("Un créneau libre du planning peut être utilisé ; un créneau occupé par un autre locataire ne peut pas l'être. Le non-respect du planning peut entraîner votre retrait du système."), style: const TextStyle(fontSize: 12.5, height: 1.4))),
               ]),
             ),

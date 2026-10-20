@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart' hide Text;
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -6,8 +6,8 @@ import 'dart:convert';
 import 'config.dart';
 import 'l10n.dart';
 
-/// Aviso de « nova versão disponível » (só no Android instalado por APK). A app consulta
-/// amcleancare.ch/apk/version.json e, se houver uma versão mais recente, propõe descarregá-la.
+/// Aviso de « nova versão disponível ». A atualização faz-se SEMPRE pela loja (Google Play / App Store), nunca por ficheiro da internet.
+/// A app consulta amcleancare.ch/apk/version.json (« build » = última versão já publicada nas lojas) e, se for mais recente, abre a loja.
 class AppUpdate {
   static bool _shown = false;
 
@@ -23,7 +23,8 @@ class AppUpdate {
       if (!context.mounted) return;
       final force = j['force'] == true;
       final notes = '${j['notes'] ?? ''}'.trim();
-      final url = '${j['apk'] ?? AppConfig.updateApkUrl}';
+      final ios = defaultTargetPlatform == TargetPlatform.iOS;
+      final store = ios ? AppConfig.appStoreUrl : AppConfig.playStoreUrl;
       await showDialog<void>(
         context: context,
         barrierDismissible: !force,
@@ -36,7 +37,7 @@ class AppUpdate {
           ]),
           actions: [
             if (!force) TextButton(onPressed: () => Navigator.pop(c), child: const Text('Plus tard')),
-            FilledButton(onPressed: () { launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); if (!force) Navigator.pop(c); }, child: const Text('Mettre à jour')),
+            FilledButton(onPressed: () { launchUrl(Uri.parse(store), mode: LaunchMode.externalApplication); if (!force) Navigator.pop(c); }, child: const Text('Mettre à jour')),
           ],
         ),
       );
