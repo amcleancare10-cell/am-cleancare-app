@@ -1,0 +1,73 @@
+# Controlos automáticos da AM Clean Care — correm no GitHub, sem o computador do utilizador.
+# De 6 em 6 horas verifica o painel, a app, as lojas de vídeos/APK, a base de dados (Supabase), os serviços, a segurança e o e-mail.
+# Se algo falhar (depois de repetir uma vez), abre um AVISO (Issue) neste repositório -> o GitHub envia e-mail ao dono do repositório.
+# Quando tudo volta ao normal, o aviso fecha-se sozinho. Só faz leituras; não guarda segredos (usa apenas endereços e a chave pública).
+name: Controlos automáticos
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'      # às 00:17, 06:17, 12:17 e 18:17 UTC
+  workflow_dispatch: {}          # também se pode correr à mão (Actions > Controlos automáticos > Run workflow)
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: controlos
+  cancel-in-progress: false
+
+jobs:
+  controlar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Correr os controlos (repete uma vez se falhar, para evitar falsos alarmes)
+        id: run
+        run: |
+          set +e
+          node controlos/verificar.mjs
+          code=$?
+          if [ $code -ne 0 ]; then
+            echo "Falhou — a repetir daqui a 90 segundos para confirmar…"
+            sleep 90
+            node controlos/verificar.mjs
+            code=$?
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+      - name: Abrir ou fechar o aviso (Issue)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CODE: ${{ steps.run.outputs.code }}
+        run: |
+          gh label create controlo --color D93F0B --description "Aviso dos controlos automáticos" 2>/dev/null || true
+          existing=$(gh issue list --label controlo --state open --json number --jq '.[0].number // empty')
+          if [ "$CODE" != "0" ]; then
+            title="🚨 AM Clean Care: um controlo automático falhou"
+            if [ -n "$existing" ]; then
+              gh issue edit "$existing" --body-file summary.md
+              echo "Aviso $existing atualizado."
+            else
+              gh issue create --title "$title" --label controlo --body-file summary.md
+              echo "Aviso aberto."
+            fi
+          else
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body "✅ Tudo voltou ao normal. Aviso fechado automaticamente."
+              gh issue close "$existing"
+            fi
+          fi
+      - name: Manter o agendamento ativo (o GitHub desliga agendamentos de repositórios parados há 60 dias)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/controlos.yml/enable" || true
+      - name: Terminar com erro se continua a falhar (o GitHub envia também um e-mail por isto)
+        if: steps.run.outputs.code != '0'
+        run: exit 1
