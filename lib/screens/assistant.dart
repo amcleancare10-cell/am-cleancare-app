@@ -101,7 +101,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
     if (needsFootage(text)) chips.add(chip(Icons.videocam_outlined, 'Demander les images', kAmber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestScreen(me: widget.me, kind: RequestKind.camera)))));
     final isLaundry = needsLaundry(text);
     if (isLaundry) chips.add(chip(Icons.local_laundry_service_outlined, tr('Signaler un problème'), kAmber, () => Navigator.push(context, MaterialPageRoute(builder: (_) => RequestScreen(me: widget.me, kind: RequestKind.laundry)))));
-    if (needsTicket(text) && !isLaundry) chips.add(chip(Icons.confirmation_number_outlined, 'Ouvrir un ticket', kPrimary, () => Navigator.push(context, MaterialPageRoute(builder: (_) => NewTicketScreen(me: widget.me)))));
+    if (needsTicket(text) && !isLaundry) chips.add(chip(Icons.confirmation_number_outlined, 'Ouvrir un ticket', kPrimary, () => openNewTicket(context, widget.me)));
     chips.add(chip(Icons.copy_rounded, 'Copier', const Color(0xFF667085), () { Clipboard.setData(ClipboardData(text: text)); toast(context, 'Réponse copiée.'); }));
     return Padding(padding: const EdgeInsets.only(top: 4, bottom: 6), child: Wrap(spacing: 8, runSpacing: 6, children: chips));
   }

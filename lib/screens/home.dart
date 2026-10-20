@@ -310,7 +310,7 @@ class _HomeTabState extends State<HomeTab> {
                 const SectionTitle('Que souhaitez-vous faire ?'),
                 FadeIn(
                   child: GridView(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: kDesign == 'b' ? 1 : 2, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: kDesign == 'b' ? 78 : 160), children: [
-                    tile(Icons.add_circle_outline_rounded, kPrimary, 'Ouvrir un ticket', 'Vous avez des problèmes ?', () => open(NewTicketScreen(me: me))),
+                    tile(Icons.add_circle_outline_rounded, kPrimary, 'Ouvrir un ticket', 'Vous avez des problèmes ?', () async { await openNewTicket(context, me); if (mounted) setState(() => _k++); }),
                     tile(Icons.confirmation_number_outlined, kBlue, 'Tickets ouverts', nOpen + nWait == 0 ? 'Aucun ticket en cours' : '$nOpen ${tr('en cours')} · $nWait ${tr('en attente')}', () => open(TicketsScreen(me: me)), badge: nOpen + nWait > 0 ? '${nOpen + nWait}' : null),
                     tile(Icons.support_agent_rounded, kTeal, 'Conciergerie', 'Parler avec le Service de Conciergerie', () {
                       // abre o WhatsApp da conciergerie, com uma mensagem já pronta com os dados do locatário

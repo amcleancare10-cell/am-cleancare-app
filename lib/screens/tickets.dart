@@ -2,9 +2,22 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart' hide Text;
 import '../l10n.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../config.dart';
 import '../ui.dart';
+
+/// « Ouvrir un ticket » : se a gérance indicou um endereço externo (programa de tickets próprio), abre-o ; senão (por defeito) abre o nosso formulário.
+Future<void> openNewTicket(BuildContext context, Me me) async {
+  String raw = '';
+  try { raw = '${(await Api.managerOf(me))?['ticket_url'] ?? ''}'.trim(); } catch (_) {}
+  final uri = Uri.tryParse(raw);
+  if (raw.isNotEmpty && uri != null && (uri.scheme == 'https' || uri.scheme == 'http') && uri.host.contains('.')) {
+    try { if (await launchUrl(uri, mode: LaunchMode.externalApplication)) return; } catch (_) {}
+  }
+  if (!context.mounted) return;
+  await Navigator.push(context, MaterialPageRoute(builder: (_) => NewTicketScreen(me: me)));
+}
 
 /// Gestionnaire de tickets: En cours / En attente / Fermé.
 class TicketsScreen extends StatefulWidget {
@@ -29,7 +42,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
         appBar: AppBar(title: const Text('Gestionnaire de tickets')),
         floatingActionButton: FloatingActionButton.extended(
           backgroundColor: kPrimary, foregroundColor: Colors.white,
-          onPressed: () async { await Navigator.push(context, MaterialPageRoute(builder: (_) => NewTicketScreen(me: widget.me))); setState(() => _k++); },
+          onPressed: () async { await openNewTicket(context, widget.me); if (mounted) setState(() => _k++); },
           icon: const Icon(Icons.add_rounded),
           label: const Text('Nouveau ticket', style: TextStyle(fontWeight: FontWeight.w700)),
         ),
