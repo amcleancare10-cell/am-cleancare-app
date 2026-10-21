@@ -34,9 +34,9 @@ await check('Site', 'certificado HTTPS válido por mais de 14 dias', async () =>
 });
 
 // ---------- app Android e tutoriais ----------
-await check('App', 'APK para descarregar (/apk) responde com ficheiro grande', async () => { const r = await get(`${SITE}/apk`, { method: 'HEAD' }); need(r.ok, 'HTTP ' + r.status); const n = +r.headers.get('content-length') || 0; need(n > 15e6, 'tamanho estranho: ' + n); return Math.round(n / 1048576) + ' MB'; });
+await check('App', 'o instalador (/installer) leva às lojas (Google Play e App Store) e /apk encaminha para ele', async () => { const a = await get(`${SITE}/apk`, { method: 'HEAD', redirect: 'manual' }); need([301, 302, 307, 308].includes(a.status) && /\/installer/.test(a.headers.get('location') || ''), '/apk deveria encaminhar para /installer (HTTP ' + a.status + ')'); const r = await get(`${SITE}/installer`); need(r.ok, 'HTTP ' + r.status); const t = await r.text(); need(/apps\.apple\.com/.test(t) && /play\.google\.com/.test(t), 'faltam os endereços das lojas'); return 'ok'; });
 let build = 0;
-await check('App', 'aviso de nova versão (version.json) válido', async () => { const r = await get(`${SITE}/wp-content/plugins/am-cleancare-apps/apk/version.json`); need(r.ok, 'HTTP ' + r.status); const j = await r.json(); build = +j.build; need(build >= 100 && j.apk, 'conteúdo inesperado'); return 'build ' + build; });
+await check('App', 'aviso de nova versão (version.json) válido', async () => { const r = await get(`${SITE}/wp-content/plugins/am-cleancare-apps/apk/version.json`); need(r.ok, 'HTTP ' + r.status); const j = await r.json(); build = +j.build; need(build >= 100, 'conteúdo inesperado'); return 'build ' + build; });
 await check('App', 'vídeos de tutorial (16) abrem', async () => { const falhas = []; for (let i = 1; i <= 16; i++) { const n = String(i).padStart(2, '0'); const r = await get(`${SB}/storage/v1/object/public/batimentimg/tutoriels/${n}.mp4`, { headers: { Range: 'bytes=0-99' } }); if (![200, 206].includes(r.status)) falhas.push(n + ':' + r.status); } need(!falhas.length, 'falharam ' + falhas.join(', ')); });
 
 // ---------- Supabase ----------
