@@ -175,21 +175,6 @@ jobs:
             gh issue comment "$existing" --body "✅ Tudo voltou ao normal. Aviso fechado automaticamente."
             gh issue close "$existing"
           fi
-      - name: Publicar o relatório completo e enviá-lo por e-mail (em TODAS as execuções, de 2 em 2 dias)
-        if: ${{ !inputs.teste_alerta }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RUN_ID: ${{ github.run_id }}
-        run: |
-          gh label create relatorio --color 0E8A16 --description "Relatório completo dos controlos" 2>/dev/null || true
-          { echo "**Execução $RUN_ID** · $(date -u '+%Y-%m-%d %H:%M') UTC"; echo; cat summary.md; } > relatorio.md
-          existing=$(gh issue list --label relatorio --state all --json number --jq '.[0].number // empty')
-          if [ -n "$existing" ]; then gh issue edit "$existing" --body-file relatorio.md; gh issue reopen "$existing" 2>/dev/null || true
-          else gh issue create --title "📋 Relatório dos controlos (atualizado a cada execução)" --label relatorio --body-file relatorio.md; fi
-          ANON=$(curl -s https://amcleancare.ch/wp-content/plugins/am-cleancare-apps/gerencia/config.js | sed -n "s/.*SUPABASE_ANON_KEY: *'\([^']*\)'.*/\1/p" | head -1)
-          sleep 5
-          curl -s -m 150 -X POST https://uxxjvwvqhaeepmmdkior.supabase.co/functions/v1/controle-semanal -H "apikey: $ANON" -H "Authorization: Bearer $ANON" -H "content-type: application/json" -d '{"action":"relatorio"}' | tee relatorio-email.json; echo
-          grep -q '"relatorio_enviado":true\|já enviado' relatorio-email.json || { echo "::error::O relatório completo não foi enviado por e-mail"; exit 1; }
       - name: Enviar o E-MAIL URGENTE para info@amcleancare.ch (só quando há falhas)
         if: ${{ steps.resumo.outputs.code != '0' }}
         run: |
